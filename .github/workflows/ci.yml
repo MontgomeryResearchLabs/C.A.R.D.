@@ -1,0 +1,40 @@
+# CI: build the firmware for the simulator and check it on the simulated board.
+#
+#  1. The reference firmware must run with NO errors (warnings are allowed).
+#  2. The deliberately broken example must be CAUGHT (exit code 1), which
+#     proves the checks themselves still work.
+name: simulate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  simulate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install clang and wasm-ld
+        run: sudo apt-get update && sudo apt-get install -y clang lld
+
+      - run: npm ci
+
+      - name: Build firmware for the simulator
+        run: npm run build
+
+      - name: Reference firmware runs clean
+        run: node tools/run-headless.mjs dist/fluid-demo.wasm --pose 0:1,90:1 --quiet
+
+      - name: Broken example is caught
+        run: |
+          set +e
+          node tools/run-headless.mjs dist/common-mistakes.wasm --pose 0:0.5 --quiet
+          code=$?
+          set -e
+          if [ "$code" -ne 1 ]; then echo "expected exit code 1 (errors found), got $code"; exit 1; fi

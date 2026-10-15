@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Build output (regenerate with `npm run build` / `node tools/sim.mjs`).
+# docs/index.html is the one built page that IS committed, for GitHub Pages.
+dist/
+build/
+*.wasm
+*.uf2
+
+# KiCad backups and local state
+*.kicad_prl
+*-backups/
+fp-info-cache
+*.bak
+
+# OS / editor
+.DS_Store
+.vscode/
+__pycache__/

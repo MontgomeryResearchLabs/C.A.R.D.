@@ -1,0 +1,291 @@
+<title>JT Card Bench</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Big+Shoulders+Text:wght@600;800&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: one-screen instrument. Left = the card on an ESD bench mat (3D);
+   right = a datasheet-style instrument rack (checks, pins, I2C, console). */
+:root {
+  --mat: #4a6670;          /* anti-static bench mat, the 3D backdrop */
+  --paper: #f2f4f2;        /* panel ground */
+  --sheet: #ffffff;        /* raised surfaces: tables, inputs */
+  --ink: #18242a;          /* text */
+  --dim: #5d6c72;          /* secondary text */
+  --rule: #d5dcdc;         /* hairlines */
+  --accent: #1f6f8b;       /* controls, focus */
+  --accent-ink: #ffffff;
+  --led: #2fa84f;          /* the LEDs' own green, used for LED readouts only */
+  --err: #c2362b; --err-bg: #fbe9e6;
+  --warn: #a86a00; --warn-bg: #fdf2dc;
+  --info: #3d6a96; --info-bg: #e8eff7;
+  --ok: #2d7a46; --ok-bg: #e5f3e9;
+  --hud-fg: #eef3f2; --hud-dim: rgba(238, 243, 242, .45); --hud-bg: rgba(16, 26, 30, .55);
+  --f-display: "Big Shoulders Text", "Barlow Condensed", "Arial Narrow", sans-serif;
+  --f-body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --mat: #1d2b31; --paper: #11181b; --sheet: #172024; --ink: #dfe7e8; --dim: #8fa0a5; --rule: #29363b;
+  --accent: #5fb2cf; --accent-ink: #0c1316; --led: #57d27a;
+  --err: #f0786c; --err-bg: #3a1c19; --warn: #e8b04d; --warn-bg: #362a12; --info: #8ab3dc; --info-bg: #1a2836; --ok: #6fcf8d; --ok-bg: #16301f;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --mat: #1d2b31; --paper: #11181b; --sheet: #172024; --ink: #dfe7e8; --dim: #8fa0a5; --rule: #29363b;
+  --accent: #5fb2cf; --accent-ink: #0c1316; --led: #57d27a;
+  --err: #f0786c; --err-bg: #3a1c19; --warn: #e8b04d; --warn-bg: #362a12; --info: #8ab3dc; --info-bg: #1a2836; --ok: #6fcf8d; --ok-bg: #16301f;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body { background: var(--paper); color: var(--ink); font: 15px/1.45 var(--f-body); }
+.app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+
+/* ---- top bar ---- */
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  border-bottom: 1px solid var(--rule); background: var(--paper);
+}
+.brand { display: flex; align-items: baseline; gap: 10px; margin-right: auto; min-width: 0; }
+.brand h1 { margin: 0; font: 800 26px/1 var(--f-display); letter-spacing: .02em; text-transform: uppercase; }
+.brand span { color: var(--dim); font-size: 13px; }
+.group { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+label.inline { display: flex; align-items: center; gap: 6px; color: var(--dim); font-size: 13px; }
+select, button, input[type="range"] { font: inherit; }
+select, button {
+  height: 34px; border-radius: 6px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink);
+  padding: 0 12px; cursor: pointer;
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; min-width: 74px; }
+button[aria-pressed="true"]:not(.primary) { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.readout { font: 600 13px var(--f-mono); font-variant-numeric: tabular-nums; display: flex; gap: 14px; }
+.readout b { font-weight: 400; color: var(--dim); margin-right: 4px; }
+#t-rt[data-state="slow"] { color: var(--warn); }
+
+/* ---- stage ---- */
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 420px; min-height: 0; }
+#view { position: relative; min-height: 0; background: var(--mat); overflow: hidden; touch-action: none; }
+#view canvas { display: block; width: 100%; height: 100%; }
+.hud { position: absolute; color: var(--hud-fg); font: 12px/1.35 var(--f-mono); font-variant-numeric: tabular-nums; pointer-events: none; }
+.hud-card { background: var(--hud-bg); border-radius: 8px; padding: 10px 12px; backdrop-filter: blur(6px); }
+.hud .lab { font: 600 11px var(--f-body); letter-spacing: .08em; text-transform: uppercase; color: var(--hud-dim); margin-bottom: 4px; }
+#hud-acc { left: 14px; top: 12px; display: flex; gap: 12px; align-items: center; white-space: nowrap; }
+#hud-acc dl { margin: 0; display: grid; grid-template-columns: auto auto; gap: 0 8px; }
+#hud-acc dt { color: var(--hud-dim); }
+#hud-acc dd { margin: 0; text-align: right; }
+#hud-help { right: 14px; top: 12px; max-width: 240px; text-align: right; color: var(--hud-fg); opacity: .7; font: 12.5px/1.4 var(--f-body); }
+.dock {
+  position: absolute; right: 14px; bottom: 14px; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; max-width: calc(100% - 28px);
+}
+.dock button { background: var(--hud-bg); color: var(--hud-fg); border-color: transparent; backdrop-filter: blur(6px); height: 32px; font-size: 13px; }
+.dock button[aria-pressed="true"] { background: var(--hud-fg); color: #10191c; }
+#toast { position: absolute; left: 50%; top: 14px; transform: translateX(-50%); background: var(--err); color: #fff; padding: 8px 14px; border-radius: 6px; max-width: 80%; }
+
+/* ---- instrument panel ---- */
+.panel { display: flex; flex-direction: column; min-height: 0; border-left: 1px solid var(--rule); }
+#status { margin: 0; padding: 10px 16px; font-weight: 600; border-bottom: 1px solid var(--rule); display: flex; align-items: center; gap: 8px; }
+#status::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; flex: none; }
+#status[data-sev="error"] { color: var(--err); background: var(--err-bg); }
+#status[data-sev="warn"] { color: var(--warn); background: var(--warn-bg); }
+#status[data-sev="ok"] { color: var(--ok); background: var(--ok-bg); }
+.tabs { display: flex; border-bottom: 1px solid var(--rule); padding: 0 8px; overflow-x: auto; }
+.tabs button { border: 0; background: none; border-radius: 0; height: 40px; padding: 0 12px; color: var(--dim); border-bottom: 2px solid transparent; font-weight: 600; white-space: nowrap; }
+.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.count { font: 600 11px var(--f-mono); background: var(--rule); color: var(--ink); border-radius: 9px; padding: 1px 6px; margin-left: 4px; }
+.count:empty { display: none; }
+.tabpanel { overflow: auto; padding: 14px 16px 24px; min-height: 0; flex: 1; }
+h2 { font: 800 15px/1.2 var(--f-display); letter-spacing: .06em; text-transform: uppercase; margin: 18px 0 8px; color: var(--dim); }
+h2:first-child { margin-top: 0; }
+
+.metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--rule); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.metric { background: var(--sheet); padding: 10px 10px 9px; min-width: 0; }
+.metric .v { font: 600 19px/1.1 var(--f-mono); font-variant-numeric: tabular-nums; }
+.metric .v small { font-size: 11px; color: var(--dim); margin-left: 3px; font-weight: 400; }
+.metric .k { font-size: 12px; color: var(--dim); margin-top: 3px; }
+.metric.led .v { color: var(--led); }
+.metric .sub { font-size: 11px; color: var(--dim); }
+
+#diag-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.diag { border-left: 3px solid var(--sevc); background: var(--sheet); border-radius: 0 6px 6px 0; padding: 9px 11px; }
+.diag[data-sev="error"] { --sevc: var(--err); } .diag[data-sev="warn"] { --sevc: var(--warn); } .diag[data-sev="info"] { --sevc: var(--info); }
+.diag-head { display: flex; gap: 8px; align-items: baseline; }
+.sev { font: 600 10px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--sevc); flex: none; }
+.diag-title { font-weight: 600; }
+.diag p { margin: 4px 0; color: var(--dim); font-size: 13.5px; }
+.diag-meta { font: 11px var(--f-mono); color: var(--dim); }
+.empty { color: var(--dim); padding: 10px 0; }
+
+table { border-collapse: collapse; width: 100%; font-size: 12.5px; }
+th { text-align: left; font-weight: 600; color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .05em; padding: 4px 6px; border-bottom: 1px solid var(--rule); position: sticky; top: 0; background: var(--paper); }
+td { padding: 3px 6px; border-bottom: 1px solid var(--rule); font-family: var(--f-mono); white-space: nowrap; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.bytes { white-space: normal; word-break: break-all; }
+.lvl { display: inline-block; min-width: 26px; text-align: center; border-radius: 4px; font-weight: 600; padding: 0 4px; }
+tr[data-state="H"] .lvl { background: var(--led); color: #fff; }
+tr[data-state="L"] .lvl { background: var(--ink); color: var(--paper); }
+tr[data-state="Z"] .lvl { color: var(--dim); }
+tr[data-state="I2C"] .lvl { background: var(--info-bg); color: var(--info); }
+tr[data-res="error"] td, tr[data-res="timeout"] td { color: var(--err); }
+.scroll-x { overflow-x: auto; }
+dl.regs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px 12px; margin: 0; }
+dl.regs dt { font-size: 11px; color: var(--dim); }
+dl.regs dd { margin: 0; font: 600 14px var(--f-mono); }
+
+#console-out { margin: 0; font: 12px/1.5 var(--f-mono); white-space: pre-wrap; word-break: break-word; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 10px; min-height: 200px; max-height: 60vh; overflow: auto; }
+
+.field { display: grid; gap: 4px; margin-bottom: 12px; }
+.field > span, .field > label { font-size: 13px; color: var(--dim); }
+pre.cmd { margin: 0; background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 10px 12px; font: 12px/1.6 var(--f-mono); overflow-x: auto; }
+.cmd-wrap { position: relative; }
+.cmd-wrap button { position: absolute; right: 6px; top: 6px; height: 26px; font-size: 12px; padding: 0 8px; }
+.prose { max-width: 62ch; color: var(--dim); font-size: 14px; }
+.prose p { margin: 0 0 8px; }
+.prose code { font: 12.5px var(--f-mono); color: var(--ink); }
+.check { display: flex; gap: 8px; align-items: center; font-size: 14px; margin-bottom: 10px; }
+
+@media (max-width: 860px) {
+  .app { height: auto; min-height: 100%; }
+  .stage { grid-template-columns: minmax(0, 1fr); }
+  #view { height: 58svh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--rule); }
+  .tabpanel { overflow: visible; }
+  #hud-help { display: none; }
+  #hud-acc { top: 10px; left: 10px; padding: 8px 10px; }
+  #compass { width: 48px; height: 48px; }
+  .dock { right: 10px; bottom: 10px; max-width: calc(100% - 20px); }
+  .metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .brand span { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { scroll-behavior: auto !important; } }
+</style>
+
+<div class="app">
+  <header class="bar">
+    <div class="brand"><h1>JT Card Bench</h1><span>RP2350A · 21×21 charlieplex · LIS2DH12</span></div>
+    <div class="group">
+      <label class="inline" for="fw-select">Firmware</label>
+      <select id="fw-select"></select>
+      <input id="fw-file" type="file" accept=".wasm" hidden>
+    </div>
+    <div class="group">
+      <button id="run" class="primary" aria-pressed="false">Pause</button>
+      <button id="reset" title="Restart the firmware from reset">Reset</button>
+      <label class="inline" for="speed">Speed</label>
+      <select id="speed" title="1/1000× slows time enough to watch individual charlieplex scan slots">
+        <option value="1" selected>1×</option>
+        <option value="0.25">¼×</option>
+        <option value="0.01">1/100×</option>
+        <option value="0.001">1/1000×</option>
+      </select>
+    </div>
+    <div class="readout" aria-live="off">
+      <span><b>t</b><span id="t-sim">0.000 s</span></span>
+      <span><b>speed</b><span id="t-rt">100 %</span></span>
+      <span><b>core0</b><span id="core0">—</span></span>
+      <span><b>core1</b><span id="core1">—</span></span>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section id="view" aria-label="3D view of the business card. Drag to tilt it.">
+      <div id="hud-help" class="hud">Drag to tilt the card · right-drag or two fingers to orbit · scroll to zoom</div>
+      <div id="hud-acc" class="hud hud-card">
+        <canvas id="compass" width="64" height="64" aria-label="Gravity direction on the LED face"></canvas>
+        <div>
+          <div class="lab">LIS2DH12 sees</div>
+          <dl><dt>X</dt><dd id="acc-x">+0.00</dd><dt>Y</dt><dd id="acc-y">+0.00</dd><dt>Z</dt><dd id="acc-z">+0.00</dd></dl>
+          <div id="acc-mode" style="color:var(--hud-dim)">power-down</div>
+        </div>
+      </div>
+      <div class="dock" role="group" aria-label="Card pose">
+        <button id="rock" aria-pressed="true">Rock</button>
+        <button data-pose="upright">Upright</button>
+        <button data-pose="left">Tilt left</button>
+        <button data-pose="right">Tilt right</button>
+        <button data-pose="inverted">Upside down</button>
+        <button data-pose="flat">Lay flat</button>
+        <button data-pose="back">Front side</button>
+        <button id="shake">Shake</button>
+      </div>
+      <div id="toast" role="alert" hidden></div>
+    </section>
+
+    <aside class="panel">
+      <p id="status" data-sev="ok" aria-live="polite">Starting firmware…</p>
+      <div class="tabs" role="tablist">
+        <button role="tab" aria-selected="true" aria-controls="p-checks" id="tab-checks">Checks<span class="count" id="tab-checks-count"></span></button>
+        <button role="tab" aria-selected="false" aria-controls="p-pins">Pins</button>
+        <button role="tab" aria-selected="false" aria-controls="p-i2c">I2C</button>
+        <button role="tab" aria-selected="false" aria-controls="p-console">Console</button>
+        <button role="tab" aria-selected="false" aria-controls="p-setup">Your code</button>
+      </div>
+
+      <div id="p-checks" class="tabpanel" role="tabpanel">
+        <div class="metrics">
+          <div class="metric led"><div class="v"><span id="m-led">—</span><small>mA</small></div><div class="k">LED current range</div></div>
+          <div class="metric led"><div class="v"><span id="m-hz">—</span><small>Hz</small></div><div class="k">slowest refresh</div></div>
+          <div class="metric led"><div class="v" id="m-lit">—</div><div class="k">LEDs lit (100 ms)</div></div>
+          <div class="metric"><div class="v"><span id="m-pin">—</span><small>mA</small></div><div class="k">peak on one LED line</div><div class="sub" id="m-pin-sub"></div></div>
+          <div class="metric"><div class="v" id="m-i2c">—</div><div class="k">I2C ok / failed</div></div>
+          <div class="metric"><div class="v"><span id="m-ram">—</span><small>KB</small></div><div class="k">static RAM of 520</div></div>
+        </div>
+        <h2>Findings</h2>
+        <ul id="diag-list"><li class="empty">Running…</li></ul>
+      </div>
+
+      <div id="p-pins" class="tabpanel" role="tabpanel" hidden>
+        <div class="scroll-x"><table>
+          <thead><tr><th>Pin</th><th>Net</th><th>Fn</th><th>Lvl</th><th>Pull</th><th>mA rated</th><th>mA now</th><th>peak</th></tr></thead>
+          <tbody id="pin-rows"></tbody>
+        </table></div>
+      </div>
+
+      <div id="p-i2c" class="tabpanel" role="tabpanel" hidden>
+        <h2>LIS2DH12 @ 0x18</h2>
+        <dl class="regs" id="lis-regs"></dl>
+        <h2>Bus trace (newest first)</h2>
+        <div class="scroll-x"><table>
+          <thead><tr><th>t (s)</th><th>Addr</th><th>R/W</th><th>Bytes</th><th>Result</th></tr></thead>
+          <tbody id="i2c-rows"></tbody>
+        </table></div>
+      </div>
+
+      <div id="p-console" class="tabpanel" role="tabpanel" hidden>
+        <h2>printf output</h2>
+        <pre id="console-out"></pre>
+      </div>
+
+      <div id="p-setup" class="tabpanel" role="tabpanel" hidden>
+        <h2>Run your own firmware</h2>
+        <div class="prose">
+          <p>Your Pico SDK C files compile unchanged against a simulated SDK. <code>tools/sim.mjs</code> compiles a firmware folder and opens this view with it loaded. You can also load a <code>.wasm</code> here with <em>Firmware → Load your .wasm…</em>.</p>
+        </div>
+        <div class="cmd-wrap"><pre class="cmd" id="cmd-build">cd rp2350-card-sim
+npm install            # once: Binaryen, three.js
+brew install llvm lld  # once: clang + wasm-ld
+export PATH="$(brew --prefix llvm)/bin:$(brew --prefix lld)/bin:$PATH"
+node tools/sim.mjs path/to/your/firmware   # compile + open in 3D
+node tools/run-headless.mjs my-fw.wasm     # text report, no browser</pre><button data-copy="cmd-build">Copy</button></div>
+        <div class="prose" style="margin-top:12px">
+          <p>Supported: <code>gpio_*</code> (incl. masked), <code>i2c_*</code>, <code>sleep/busy_wait</code>, timers and alarms, GPIO IRQs, <code>multicore_*</code>, mutexes, spin locks, <code>printf</code>. Direct register writes (<code>sio_hw-&gt;…</code>), PIO and DMA are not simulated; an unsupported call fails at link time with its name.</p>
+          <p>Compute time comes from an instruction count with Cortex-M33 costs. Double-precision maths is charged as software-emulated, as on the real chip.</p>
+        </div>
+        <h2>View</h2>
+        <div class="field"><span>LED exposure</span><input id="exposure" type="range" min="0.3" max="3" step="0.05" value="1"></div>
+        <label class="check"><input type="checkbox" id="show-ghost"> Mark LEDs that glowed from leakage (red)</label>
+        <div class="field"><label for="mask-color">Solder mask colour</label><select id="mask-color"></select></div>
+        <div class="field"><label for="finish">Pad finish</label><select id="finish"></select></div>
+        <p class="prose" style="font-size:13px">The card's outline, copper, mask openings and silkscreen are drawn from your .kicad_pcb. Mask colour and finish aren't stored in the KiCad file, so pick what you plan to order.</p>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<script type="importmap">{"imports":{"three":"__THREE__/build/three.module.js","three/addons/":"__THREE__/examples/jsm/"}}</script>
+<script type="application/json" id="board-data">__BOARD__</script>
+<script type="application/json" id="fw-data">__FIRMWARE__</script>
+<script type="application/json" id="art-data">__ARTWORK__</script>
+<script type="module">
+__APP__
+</script>

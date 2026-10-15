@@ -1,0 +1,36 @@
+{
+  "name": "jt-card-bench",
+  "version": "1.0.0",
+  "description": "3D hardware-in-the-loop simulator for an RP2350 business card: runs real Pico SDK firmware against a model of the circuit built from its KiCad files",
+  "scripts": {
+    "build": "node tools/build-firmware.mjs firmware/fluid-demo -o dist/fluid-demo.wasm && node tools/build-firmware.mjs firmware/examples/common-mistakes -o dist/common-mistakes.wasm",
+    "test": "node tools/run-headless.mjs dist/fluid-demo.wasm",
+    "sim": "node tools/sim.mjs",
+    "web": "node tools/build-web.mjs",
+    "pages": "node tools/build-web.mjs -o docs/index.html --standalone",
+    "extract": "python3 tools/kicad_pcb_extract.py board/JT-Business-Card.kicad_pcb -o board/board.json --header firmware/fluid-demo/led_map.h && python3 tools/kicad_artwork.py board/JT-Business-Card.kicad_pcb -o board/artwork.json"
+  },
+  "keywords": [
+    "rp2350",
+    "raspberry-pi-pico",
+    "kicad",
+    "simulator",
+    "webassembly",
+    "charlieplexing",
+    "three.js",
+    "hardware-in-the-loop"
+  ],
+  "author": "Trammell Montgomery",
+  "license": "MIT",
+  "dependencies": {
+    "binaryen": "^132.0.0",
+    "three": "^0.160.0"
+  },
+  "type": "module",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
