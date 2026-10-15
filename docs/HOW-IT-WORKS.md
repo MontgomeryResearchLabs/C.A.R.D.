@@ -1,10 +1,10 @@
-# JT Card Bench: How the Simulator Works
+# S.I.M.: How the Simulator Works
 
 Trammell Montgomery · October 2026
 
 ## Overview
 
-JT Card Bench runs the business card's unmodified Pico SDK firmware against a model of the real circuit, built from the KiCad files, and shows the result on a 3D card you can tilt. It exists because the card (rev E1: RP2350A, a 21×21 charlieplexed matrix of 441 green LEDs, a LIS2DH12 accelerometer and an ST25DV04K NFC tag) was never fabricated. The simulator answers the question a first board would have answered: does this firmware drive this hardware correctly?
+S.I.M. (Simple Implementation Machine) runs the business card's unmodified Pico SDK firmware against a model of the real circuit, built from the KiCad files, and shows the result on a 3D card you can tilt. It exists because the card (rev E1: RP2350A, a 21×21 charlieplexed matrix of 441 green LEDs, a LIS2DH12 accelerometer and an ST25DV04K NFC tag) was never fabricated. The simulator answers the question a first board would have answered: does this firmware drive this hardware correctly?
 
 It verifies three things at once:
 

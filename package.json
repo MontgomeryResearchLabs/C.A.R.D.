@@ -1,5 +1,5 @@
 {
-  "name": "jt-card-bench",
+  "name": "simple-implementation-machine",
   "version": "1.0.0",
   "description": "3D hardware-in-the-loop simulator for an RP2350 business card: runs real Pico SDK firmware against a model of the circuit built from its KiCad files",
   "scripts": {

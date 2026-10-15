@@ -1,8 +1,8 @@
-# JT Card Bench
+# S.I.M. (Simple Implementation Machine)
 
 **A 3D hardware-in-the-loop simulator for an RP2350 business card that was never fabricated.**
 
-JT Card Bench runs the card's real Pico SDK C firmware, unmodified, against an
+S.I.M. runs the card's real Pico SDK C firmware, unmodified, against an
 electrical model of the circuit built straight from its KiCad files, and shows
 the result on a 3D card you can tilt. It answers the question a first prototype
 would have answered: *does this firmware drive this hardware correctly?*
