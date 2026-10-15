@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "3D hardware-in-the-loop simulator for an RP2350 business card: runs real Pico SDK firmware against a model of the circuit built from its KiCad files",
   "scripts": {
-    "build": "node tools/build-firmware.mjs firmware/fluid-demo -o dist/fluid-demo.wasm && node tools/build-firmware.mjs firmware/examples/common-mistakes -o dist/common-mistakes.wasm",
+    "build": "node tools/build-firmware.mjs firmware/fluid-demo -o dist/fluid-demo.wasm && node tools/build-firmware.mjs firmware/maze-demo firmware/fluid-demo/charlieplex.c firmware/fluid-demo/lis2dh12.c -o dist/maze-demo.wasm && node tools/build-firmware.mjs firmware/examples/common-mistakes -o dist/common-mistakes.wasm",
     "test": "node tools/run-headless.mjs dist/fluid-demo.wasm",
     "sim": "node tools/sim.mjs",
     "web": "node tools/build-web.mjs",

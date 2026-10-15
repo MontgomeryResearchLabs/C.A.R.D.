@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>C.A.R.D. — S.I.M.</title>
+<style>
+:root {
+  --mat: #161514;
+  --fg: #e8e0d6;
+  --dim: rgba(232, 224, 214, .55);
+  --chip: rgba(255, 255, 255, .07);
+  --chip-on: #2c9e8e;
+  --f: "JetBrains Mono", ui-monospace, Menlo, monospace;
+}
+html, body { margin: 0; height: 100%; background: var(--mat); color: var(--fg); font: 12px/1.4 var(--f); overflow: hidden; }
+#view { position: relative; height: 100%; touch-action: none; }
+#view canvas { display: block; width: 100%; height: 100%; }
+.help { position: absolute; left: 12px; top: 10px; color: var(--dim); letter-spacing: .04em; pointer-events: none; }
+.fw { position: absolute; right: 12px; top: 8px; display: flex; gap: 4px; }
+.dock { position: absolute; left: 12px; right: 12px; bottom: 12px; display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; }
+.fw button, .dock button {
+  font: inherit; letter-spacing: .06em; text-transform: uppercase; font-size: 11px;
+  height: 30px; padding: 0 12px; border: 1px solid transparent; border-radius: 2px;
+  background: var(--chip); color: var(--fg); cursor: pointer;
+}
+.fw button:hover, .dock button:hover { border-color: rgba(255, 255, 255, .15); }
+.fw button[aria-pressed="true"], .dock button[aria-pressed="true"] { background: var(--chip-on); color: #0e1211; }
+:focus-visible { outline: 2px solid var(--chip-on); outline-offset: 2px; }
+#err { position: absolute; inset: 0; display: grid; place-items: center; color: var(--dim); }
+[hidden] { display: none !important; }
+@media (max-width: 520px) { .help { display: none; } .dock button { padding: 0 9px; } }
+</style>
+</head>
+<body>
+<section id="view" aria-label="3D view of the C.A.R.D. business card running its firmware. Drag to tilt it.">
+  <div class="help" id="help">Drag to tilt · right-drag or two fingers to orbit</div>
+  <div class="fw" id="fw" role="group" aria-label="Firmware"></div>
+  <div class="dock" role="group" aria-label="Card pose">
+    <button id="rock" aria-pressed="true">Rock</button>
+    <button id="auto" aria-pressed="false" hidden>Auto</button>
+    <button data-pose="upright">Upright</button>
+    <button data-pose="left">Tilt left</button>
+    <button data-pose="right">Tilt right</button>
+    <button data-pose="inverted">Upside down</button>
+    <button data-pose="flat">Lay flat</button>
+    <button data-pose="back">Front side</button>
+  </div>
+  <div id="err" hidden>The simulation couldn't start in this browser.</div>
+</section>
+<script type="importmap">{"imports":{"three":"__THREE__/build/three.module.js","three/addons/":"__THREE__/examples/jsm/"}}</script>
+<script type="application/json" id="board-data">__BOARD__</script>
+<script type="application/json" id="fw-data">__FIRMWARE__</script>
+<script type="application/json" id="art-data">__ARTWORK__</script>
+<script type="module">
+__APP__
+</script>
+</body>
+</html>

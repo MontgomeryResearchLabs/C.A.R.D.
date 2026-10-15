@@ -15,25 +15,35 @@
  *
  * --three lets you point the import map at a local copy, e.g. for offline
  * use: --three ./node_modules/three
+ *
+ * --card builds the card-only embed instead (sim/web/card.js + card.html):
+ * just the 3D card, its tilt controls and a Fluid / Maze switch.
+ * It is already a full HTML document, so --standalone doesn't apply.
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as esbuild from 'esbuild';
+import { readMaze } from './maze-bitmap.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
 const opt = (k, d) => { const i = args.indexOf(k); return i >= 0 ? args[i + 1] : d; };
 const out = opt('-o', path.join(ROOT, 'dist/simulator.html'));
 const threeBase = opt('--three', 'https://cdn.jsdelivr.net/npm/three@0.160.0');
+const cardOnly = args.includes('--card');
 
-const FIRMWARE = {
+const FIRMWARE = cardOnly ? {
+  fluid: { label: 'Fluid', file: 'dist/fluid-demo.wasm' },
+  maze: { label: 'Maze', file: 'dist/maze-demo.wasm' },
+} : {
   fluid: { label: 'Fluid demo (reference)', file: 'dist/fluid-demo.wasm' },
+  maze: { label: 'Ball-tilt maze', file: 'dist/maze-demo.wasm' },
   mistakes: { label: 'Common mistakes (buggy on purpose)', file: 'dist/common-mistakes.wasm' },
 };
 
 const bundle = await esbuild.build({
-  entryPoints: [path.join(ROOT, 'sim/web/app.js')],
+  entryPoints: [path.join(ROOT, cardOnly ? 'sim/web/card.js' : 'sim/web/app.js')],
   bundle: true, format: 'esm', write: false, minify: true,
   external: ['three', 'three/addons/*'], target: 'es2020',
 });
@@ -62,10 +72,13 @@ for (const [k, v] of Object.entries(FIRMWARE)) {
   const file = path.join(ROOT, v.file);
   if (!fs.existsSync(file)) continue; // built-ins are optional (e.g. not built yet)
   fw[k] = { label: v.label, b64: fs.readFileSync(file).toString('base64') };
+  // The card embed's maze autopilot needs the layout; read it from the
+  // firmware source so maze.c stays the only place it's defined.
+  if (cardOnly && k === 'maze') fw[k].maze = readMaze();
 }
 if (!Object.keys(fw).length) { console.error('No firmware to embed: run `npm run build` or pass --add file.wasm'); process.exit(1); }
 
-const html = fs.readFileSync(path.join(ROOT, 'sim/web/template.html'), 'utf8')
+const html = fs.readFileSync(path.join(ROOT, cardOnly ? 'sim/web/card.html' : 'sim/web/template.html'), 'utf8')
   .replaceAll('__THREE__', threeBase)
   .replace('__BOARD__', () => JSON.stringify(board))
   .replace('__FIRMWARE__', () => JSON.stringify(fw))
@@ -73,7 +86,7 @@ const html = fs.readFileSync(path.join(ROOT, 'sim/web/template.html'), 'utf8')
   .replace('__APP__', () => appJs);
 // --standalone: wrap in a full HTML document so the file opens directly in a
 // browser (the published artifact gets this skeleton from the host).
-const doc = args.includes('--standalone')
+const doc = args.includes('--standalone') && !cardOnly
   ? '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">' +
     '<style>body{margin:0}[hidden]{display:none!important}</style></head><body>' + html + '</body></html>'
   : html;
